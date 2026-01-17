@@ -933,3 +933,18 @@ h1,h2,h3,h4 { margin: 0; }
 .meal-builder-grams {
   width: 96px;
 }
+
+.meal-delete-btn {
+  border: none;
+  background: transparent;
+  color: #c0392b;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.meal-delete-btn:hover {
+  color: #e74c3c;
+  transform: scale(1.1);
+}
+

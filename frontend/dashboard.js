@@ -231,10 +231,43 @@
             <div style="font-weight:800;">${mealLabel(m)}</div>
             <div class="muted">${r.items.length} foods</div>
           </div>
-          <div style="font-weight:800;">${cal} kcal</div>
+
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="font-weight:800;">${cal} kcal</div>
+            <button
+              class="meal-delete-btn"
+              title="Delete meal"
+              data-meal-id="${m.id}"
+            >
+              ✕
+            </button>
+          </div>
         </summary>
         <div class="meal-details-body"></div>
       `;
+
+      const deleteBtn = details.querySelector('.meal-delete-btn');
+
+      deleteBtn.addEventListener('click', async (e) => {
+        e.preventDefault();       // prevent <details> toggle
+        e.stopPropagation();
+
+        if (!confirm(`Delete ${mealLabel(m)}? This will remove all foods in it.`)) {
+          return;
+        }
+
+        try {
+          await apiFetch(`/api/meals/${m.id}`, {
+            method: 'DELETE'
+          });
+
+          // Reload dashboard state
+          await load();
+        } catch (err) {
+          alert('Failed to delete meal.');
+          console.error(err);
+        }
+      });
 
       const body = details.querySelector('.meal-details-body');
       if (!r.items.length) {
