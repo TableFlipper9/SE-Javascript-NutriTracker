@@ -91,6 +91,11 @@ h1,h2,h3,h4 { margin: 0; }
   align-items: start;
 }
 
+/* Log Meal page: give the Search column a bit more horizontal room */
+.grid-2-searchwide {
+  grid-template-columns: 1.25fr 1fr;
+}
+
 .grid-2col {
   grid-template-columns: 1fr 1fr;
   align-items: start;
@@ -727,6 +732,11 @@ h1,h2,h3,h4 { margin: 0; }
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  transition: width 220ms ease;
+}
+
+.progress-bar.over {
+  background: linear-gradient(135deg, hsl(5 75% 55%), hsl(18 90% 55%));
 }
 
 .chart {

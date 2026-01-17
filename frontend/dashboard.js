@@ -12,6 +12,7 @@
   const fatEl = document.getElementById('fatG');
   const mealCountEl = document.getElementById('mealCount');
   const goalHintEl = document.getElementById('goalHint');
+  const remainingLabelEl = document.getElementById('remainingLabel');
   const remainingEl = document.getElementById('remainingCalories');
   const progressEl = document.getElementById('goalProgress');
   const weeklyMetaEl = document.getElementById('weeklyMeta');
@@ -325,15 +326,35 @@
 
     if (goal) {
       const total = Number(summary.totalCalories || 0);
-      const remaining = Math.max(0, Math.round(goal - total));
+      const diff = Math.round(goal - total);
+      const over = diff < 0;
+      const remaining = Math.max(0, diff);
       const pct = Math.max(0, Math.min(100, (total / goal) * 100));
       goalHintEl.textContent = `Goal: ${goal} kcal`;
-      remainingEl.textContent = remaining;
+
+      // Remaining/Over label + value
+      if (remainingLabelEl) remainingLabelEl.textContent = over ? 'Over' : 'Remaining';
+      remainingEl.textContent = over ? Math.abs(diff) : remaining;
+
+      // Progress bar
       progressEl.style.width = `${pct}%`;
+      progressEl.classList.toggle('over', over);
+      progressEl.setAttribute('aria-valuemin', '0');
+      progressEl.setAttribute('aria-valuemax', String(goal));
+      progressEl.setAttribute('aria-valuenow', String(Math.round(total)));
+      progressEl.title = over
+        ? `${Math.round(total)} / ${goal} kcal (over by ${Math.abs(diff)} kcal)`
+        : `${Math.round(total)} / ${goal} kcal (${Math.round(pct)}%)`;
     } else {
       goalHintEl.textContent = 'Goal: set it in Settings';
+      if (remainingLabelEl) remainingLabelEl.textContent = 'Remaining';
       remainingEl.textContent = '—';
       progressEl.style.width = '0%';
+      progressEl.classList.remove('over');
+      progressEl.removeAttribute('title');
+      progressEl.removeAttribute('aria-valuemin');
+      progressEl.removeAttribute('aria-valuemax');
+      progressEl.removeAttribute('aria-valuenow');
     }
 
     // weekly chart: last 7 days ending selected
