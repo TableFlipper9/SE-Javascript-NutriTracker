@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NutriTracker - Settings</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-frame">
+    <aside id="appNav"></aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <div>
+          <h1 class="h1">Settings</h1>
+          <p class="muted">Manage your profile and account</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-outline" id="logoutBtn" type="button">Log out</button>
+        </div>
+      </header>
+
+      <main class="content stack" style="max-width: 980px;">
+        <section class="card">
+          <div class="card-header">
+            <h2 class="h2">Profile</h2>
+            <p class="muted">These values are used for your daily calorie goal and charts.</p>
+          </div>
+          <div class="card-body">
+            <form id="profileForm" class="stack">
+              <div class="form-grid">
+                <div>
+                  <label class="label" for="age">Age</label>
+                  <input class="input" id="age" type="number" min="1" placeholder="e.g. 24" />
+                </div>
+                <div>
+                  <label class="label" for="gender">Gender</label>
+                  <select class="input" id="gender">
+                    <option value="">Prefer not to say</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label" for="height">Height (cm)</label>
+                  <input class="input" id="height" type="number" min="1" placeholder="e.g. 180" />
+                </div>
+                <div>
+                  <label class="label" for="weight">Weight (kg)</label>
+                  <input class="input" id="weight" type="number" min="1" placeholder="e.g. 75" />
+                </div>
+                <div>
+                  <label class="label" for="activity">Activity level</label>
+                  <select class="input" id="activity">
+                    <option value="low">Low</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label" for="calorieGoal">Daily calorie goal</label>
+                  <input class="input" id="calorieGoal" type="number" min="1" placeholder="e.g. 2000" />
+                </div>
+              </div>
+
+              <div class="row-between" style="margin-top: 6px;">
+                <p class="muted" style="margin: 0;">Tip: update this if you change your goals.</p>
+                <button class="btn" type="submit">Save changes</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="api.js"></script>
+  <script src="nav.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

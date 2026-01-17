@@ -35,6 +35,9 @@
               <input class="input" id="login_password" type="password" placeholder="••••••••" required />
             </div>
             <button class="btn" type="submit">Sign In</button>
+
+            <div class="divider-row"><span class="muted">or</span></div>
+            <button class="btn btn-outline" type="button" id="googleBtn" disabled title="Not implemented yet">Continue with Google</button>
           </form>
 
           <!-- REGISTER -->
@@ -77,8 +80,9 @@
       registerForm.classList.toggle('hidden', isLogin);
     }
 
-    tabLogin.addEventListener('click', () => setTab('login'));
-    tabRegister.addEventListener('click', () => window.location.href = 'register.html');
+    tabLogin.addEventListener('click', () => window.location.href = 'login.html');
+    tabRegister.addEventListener('click', () => setTab('register'));
+    setTab("register");
 
     // API calls (same logic as your original file)
     async function login(e) {

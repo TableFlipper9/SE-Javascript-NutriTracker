@@ -1,46 +1,111 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NutriTracker - Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Dashboard</h1>
-  <p id="userInfo">Loading...</p>
+  <div class="app-frame">
+    <aside id="appNav"></aside>
 
-  <button onclick="logout()">Logout</button>
+    <div class="app-main">
+      <header class="topbar">
+        <div>
+          <h1 class="h1">Dashboard</h1>
+          <p class="muted">Your daily progress and weekly performance</p>
+        </div>
 
-  <script>
-    async function loadUser() {
-    const token = localStorage.getItem("token");
+        <div class="topbar-actions">
+          <button class="icon-btn" id="prevDayBtn" type="button" aria-label="Previous day">‹</button>
+          <input class="input" type="date" id="datePicker" />
+          <button class="icon-btn" id="nextDayBtn" type="button" aria-label="Next day">›</button>
+        </div>
+      </header>
 
-    if (!token) {
-        window.location.href = "login.html";
-        return;
-    }
+      <main class="content" style="max-width: 1200px;">
+        <div class="grid grid-3">
+          <section class="card card-gradient">
+            <div class="card-header">
+              <h2 class="h2">Today's goal</h2>
+              <p class="muted" id="summaryDateLabel">—</p>
+            </div>
+            <div class="card-body">
+              <div class="calories-block" style="margin-bottom: 10px;">
+                <div class="calories-value">
+                  <span id="totalCalories">0</span>
+                  <span class="calories-unit">kcal</span>
+                </div>
+                <div class="muted" id="goalHint">Goal: —</div>
+              </div>
 
-    const res = await fetch("http://localhost:3000/api/auth/me", {
-        headers: {
-        "Authorization": "Bearer " + token
-        }
-    });
+              <div class="progress">
+                <div class="progress-bar" id="goalProgress" style="width:0%"></div>
+              </div>
+              <div class="row-between" style="margin-top: 10px;">
+                <div class="muted">Remaining</div>
+                <div class="kpi"><span id="remainingCalories">0</span> kcal</div>
+              </div>
+            </div>
+          </section>
 
-    if (!res.ok) {
-        window.location.href = "login.html";
-        return;
-    }
+          <section class="card">
+            <div class="card-header">
+              <h2 class="h2">Daily macros</h2>
+              <p class="muted">Tracked for the selected date</p>
+            </div>
+            <div class="card-body">
+              <div class="macro-list">
+                <div class="macro-row">
+                  <div>
+                    <div class="muted">Protein</div>
+                    <div class="macro-strong"><span id="proteinG">0</span> g</div>
+                  </div>
+                  <div class="pill">P</div>
+                </div>
+                <div class="macro-row">
+                  <div>
+                    <div class="muted">Carbs</div>
+                    <div class="macro-strong"><span id="carbsG">0</span> g</div>
+                  </div>
+                  <div class="pill pill-secondary">C</div>
+                </div>
+                <div class="macro-row">
+                  <div>
+                    <div class="muted">Fat</div>
+                    <div class="macro-strong"><span id="fatG">0</span> g</div>
+                  </div>
+                  <div class="pill pill-accent">F</div>
+                </div>
+              </div>
 
-    const user = await res.json();
-        userInfo.textContent = `Logged in as: ${user.username}`;
-    }
+              <div class="divider"></div>
+              <div class="row-between">
+                <div class="muted">Meals logged</div>
+                <div class="kpi"><span id="mealCount">0</span></div>
+              </div>
+            </div>
+          </section>
 
+          <section class="card">
+            <div class="card-header">
+              <h2 class="h2">Weekly performance</h2>
+              <p class="muted">Calories vs. goal (last 7 days)</p>
+            </div>
+            <div class="card-body">
+              <canvas id="weeklyChart" height="180" class="chart"></canvas>
+              <div class="muted" id="weeklyMeta" style="margin-top: 10px;">—</div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
 
-    async function logout() {
-        localStorage.removeItem("token");
-        window.location.href = "login.html";
-    }
-
-
-    loadUser();
-  </script>
+  <script src="auth.js"></script>
+  <script src="api.js"></script>
+  <script src="nav.js"></script>
+  <script src="dashboard.js"></script>
 </body>
 </html>

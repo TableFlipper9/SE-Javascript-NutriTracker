@@ -13,8 +13,10 @@
     "content-type": "^1.0.5",
     "cookie": "^0.7.2",
     "cookie-signature": "^1.2.2",
+    "cors": "^2.8.5",
     "debug": "^4.4.3",
     "depd": "^2.0.0",
+    "dotenv": "^17.2.3",
     "dunder-proto": "^1.0.1",
     "ee-first": "^1.1.1",
     "encodeurl": "^2.0.0",
@@ -24,6 +26,7 @@
     "escape-html": "^1.0.3",
     "etag": "^1.8.1",
     "express": "^5.2.1",
+    "express-session": "^1.18.2",
     "finalhandler": "^2.1.1",
     "forwarded": "^0.2.0",
     "fresh": "^2.0.0",
@@ -38,6 +41,7 @@
     "inherits": "^2.0.4",
     "ipaddr.js": "^1.9.1",
     "is-promise": "^4.0.0",
+    "jsonwebtoken": "^9.0.3",
     "math-intrinsics": "^1.1.0",
     "media-typer": "^1.1.0",
     "merge-descriptors": "^2.0.0",
@@ -84,7 +88,6 @@
     "wrappy": "^1.0.2",
     "xtend": "^4.0.2"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

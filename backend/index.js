@@ -1,28 +1,30 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const JWT_SECRET = "demo-secret-key";
+
+const authRoutes = require("./routes/auth");
+const profileRoutes = require("./routes/profile");
+const dayLogRoutes = require("./routes/dayLogs");
+const mealRoutes = require("./routes/meals");
+const foodRoutes = require("./routes/foods");
+const summaryRoutes = require("./routes/summary");
 
 const app = express();
 
+app.use(express.json());
 app.use(cors({
-  origin: [
-    "http://localhost:5500",
-    "http://127.0.0.1:5500"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  origin: ["http://localhost:5500"],
+  credentials: true
 }));
 
-app.use(express.json());
-
-const authRoutes = require("./routes/auth");
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/day-logs", dayLogRoutes);
+app.use("/api/meals", mealRoutes);
+app.use("/api/foods", foodRoutes);
+app.use("/api/summary", summaryRoutes);
 
-// Start server
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Backend running on http://localhost:${PORT}`);
 });
-
-
-
