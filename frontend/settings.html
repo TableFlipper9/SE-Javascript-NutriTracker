@@ -16,9 +16,6 @@
           <h1 class="h1">Settings</h1>
           <p class="muted">Manage your profile and account</p>
         </div>
-        <div class="topbar-actions">
-          <button class="btn btn-outline" id="logoutBtn" type="button">Log out</button>
-        </div>
       </header>
 
       <main class="content stack" style="max-width: 980px;">
@@ -68,6 +65,16 @@
               <div class="row-between" style="margin-top: 6px;">
                 <p class="muted" style="margin: 0;">Tip: update this if you change your goals.</p>
                 <button class="btn" type="submit">Save changes</button>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="row-between">
+                <div>
+                  <div style="font-weight:700;">Danger zone</div>
+                  <p class="muted" style="margin: 4px 0 0 0;">This permanently deletes your account and all your data.</p>
+                </div>
+                <button class="btn btn-danger" id="deleteAccountBtn" type="button">Delete account</button>
               </div>
             </form>
           </div>

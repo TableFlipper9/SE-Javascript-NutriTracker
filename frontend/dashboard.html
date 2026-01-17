@@ -25,7 +25,7 @@
       </header>
 
       <main class="content" style="max-width: 1200px;">
-        <div class="grid grid-3">
+        <div class="grid grid-2col">
           <section class="card card-gradient">
             <div class="card-header">
               <h2 class="h2">Today's goal</h2>
@@ -46,6 +46,15 @@
               <div class="row-between" style="margin-top: 10px;">
                 <div class="muted">Remaining</div>
                 <div class="kpi"><span id="remainingCalories">0</span> kcal</div>
+              </div>
+
+              <div class="divider" style="margin: 14px 0;"></div>
+
+              <div class="meal-type-strip" aria-label="Meals logged today">
+                <div class="meal-type-pill" id="hasBreakfast">Breakfast</div>
+                <div class="meal-type-pill" id="hasLunch">Lunch</div>
+                <div class="meal-type-pill" id="hasDinner">Dinner</div>
+                <div class="meal-type-pill" id="hasSnack">Snack</div>
               </div>
             </div>
           </section>
@@ -85,6 +94,26 @@
                 <div class="muted">Meals logged</div>
                 <div class="kpi"><span id="mealCount">0</span></div>
               </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <div class="row-between" style="align-items:center;">
+                <div>
+                  <h2 class="h2">Today's meals</h2>
+                  <p class="muted">Expand a meal to see its foods</p>
+                </div>
+
+                <div class="tabs" role="tablist" aria-label="Meals tabs">
+                  <button class="tab-btn active" type="button" role="tab" aria-selected="true" data-tab="meals">Meals</button>
+                  <button class="tab-btn" type="button" role="tab" aria-selected="false" data-tab="foods">Foods</button>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="todayMealsPanel" data-tabpanel="meals"></div>
+              <div id="todayFoodsPanel" data-tabpanel="foods" style="display:none;"></div>
             </div>
           </section>
 

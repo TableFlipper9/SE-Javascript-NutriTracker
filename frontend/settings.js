@@ -1,7 +1,13 @@
 (async function () {
   if (!requireAuth()) return;
 
-  document.getElementById('logoutBtn').addEventListener('click', logout);
+  // Account deletion
+  document.getElementById('deleteAccountBtn')?.addEventListener('click', async () => {
+    const ok = confirm('Delete your account and all your data? This cannot be undone.');
+    if (!ok) return;
+    await apiFetch('/api/account', { method: 'DELETE' });
+    logout();
+  });
 
   const form = document.getElementById('profileForm');
   const age = document.getElementById('age');

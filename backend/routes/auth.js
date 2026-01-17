@@ -8,18 +8,56 @@ const JWT_SECRET = process.env.JWT_SECRET || "demo-secret-key";
 
 // register
 router.post("/register", async (req, res) => {
-  const { username, email, password } = req.body;
+  const {
+    username,
+    email,
+    password,
+    age,
+    gender,
+    height_cm,
+    weight_kg,
+    activity_level,
+    calorie_goal
+  } = req.body;
 
   try {
-    const result = await db.query(
+    // Basic required-field checks (frontend enforces too)
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: "Missing username, email, or password" });
+    }
+    if (
+      age === undefined ||
+      !gender ||
+      height_cm === undefined ||
+      weight_kg === undefined ||
+      !activity_level ||
+      calorie_goal === undefined
+    ) {
+      return res.status(400).json({ error: "Profile is required to complete registration" });
+    }
+
+    // Create user + profile in a transaction
+    await db.query("BEGIN");
+    const userRes = await db.query(
       `INSERT INTO users (username, email, password)
        VALUES ($1, $2, $3)
        RETURNING id`,
       [username, email, password]
     );
 
+    const userId = userRes.rows[0].id;
+
+    await db.query(
+      `INSERT INTO profiles
+       (user_id, age, gender, height_cm, weight_kg, activity_level, calorie_goal)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId, age, gender, height_cm, weight_kg, activity_level, calorie_goal]
+    );
+
+    await db.query("COMMIT");
     res.json({ message: "User registered" });
   } catch (err) {
+    try { await db.query("ROLLBACK"); } catch {}
     res.status(400).json({ error: err.message });
   }
 });

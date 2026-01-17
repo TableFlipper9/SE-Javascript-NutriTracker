@@ -1,45 +1,53 @@
 (function () {
   if (!requireAuth()) return;
 
-  const datePicker = document.getElementById('datePicker');
-  const prevBtn = document.getElementById('prevDayBtn');
-  const nextBtn = document.getElementById('nextDayBtn');
+  const mealTypeEl = document.getElementById('mealType');
+  const foodQueryEl = document.getElementById('foodQuery');
+  const searchFoodBtn = document.getElementById('searchFoodBtn');
+  const foodResultsEl = document.getElementById('foodResults');
+  const mealItemsEl = document.getElementById('mealItems');
+  const mealBuilderSubtitle = document.getElementById('mealBuilderSubtitle');
+  const emptyMealHint = document.getElementById('emptyMealHint');
+  const clearMealBtn = document.getElementById('clearMealBtn');
+  const saveMealBtn = document.getElementById('saveMealBtn');
 
-  // Summary elements
-  const summaryDateLabel = document.getElementById('summaryDateLabel');
+  // Totals
   const totalCaloriesEl = document.getElementById('totalCalories');
   const proteinEl = document.getElementById('proteinG');
   const carbsEl = document.getElementById('carbsG');
   const fatEl = document.getElementById('fatG');
-  const caloriesHintEl = document.getElementById('caloriesHint');
 
-  // Meals
-  const mealsGrid = document.getElementById('mealsGrid');
-  const addMealBtn = document.getElementById('addMealBtn');
-
-  // Food search
-  const foodQuery = document.getElementById('foodQuery');
-  const searchFoodBtn = document.getElementById('searchFoodBtn');
-  const quantityGrams = document.getElementById('quantityGrams');
-  const foodResults = document.getElementById('foodResults');
-  const selectedMealLabel = document.getElementById('selectedMealLabel');
+  // Custom food modal
   const createCustomFoodBtn = document.getElementById('createCustomFoodBtn');
-
-  // Modals
-  const mealModal = document.getElementById('mealModal');
-  const closeMealModal = document.getElementById('closeMealModal');
-  const cancelAddMeal = document.getElementById('cancelAddMeal');
-  const confirmAddMeal = document.getElementById('confirmAddMeal');
-  const mealType = document.getElementById('mealType');
-
   const customFoodModal = document.getElementById('customFoodModal');
   const closeCustomFoodModal = document.getElementById('closeCustomFoodModal');
   const cancelCustomFood = document.getElementById('cancelCustomFood');
   const customFoodForm = document.getElementById('customFoodForm');
 
-  let dayLogId = null;
-  let meals = [];
-  let selectedMealId = null;
+  /**
+   * Local "draft" meal state (not persisted until Save)
+   * items = [{ food, grams }]
+   */
+  let items = [];
+
+  function openModal(el) {
+    el.classList.remove('hidden');
+    el.setAttribute('aria-hidden', 'false');
+  }
+  function closeModal(el) {
+    el.classList.add('hidden');
+    el.setAttribute('aria-hidden', 'true');
+  }
+
+  function titleCase(s) {
+    const t = String(s || '').toLowerCase();
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+  }
+
+  function fmt(n) {
+    const num = Number(n || 0);
+    return Math.round(num * 10) / 10;
+  }
 
   function iso(dateObj) {
     const d = new Date(dateObj);
@@ -49,326 +57,245 @@
     return `${year}-${month}-${day}`;
   }
 
-  function addDays(dateStr, delta) {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + delta);
-    return iso(d);
+  function computeTotals() {
+    const totals = items.reduce(
+      (acc, it) => {
+        const grams = Math.max(0, Number(it.grams || 0));
+        const f = it.food || {};
+        acc.calories += (grams / 100) * Number(f.calories_per_100g || 0);
+        acc.protein += (grams / 100) * Number(f.protein_per_100g || 0);
+        acc.carbs += (grams / 100) * Number(f.carbs_per_100g || 0);
+        acc.fat += (grams / 100) * Number(f.fat_per_100g || 0);
+        return acc;
+      },
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+    return totals;
   }
 
-  function getSelectedDate() {
-    const u = new URL(location.href);
-    const qp = u.searchParams.get('date');
-    return qp && /^\d{4}-\d{2}-\d{2}$/.test(qp) ? qp : iso(new Date());
-  }
+  function renderMeal() {
+    const mealType = titleCase(mealTypeEl.value);
+    mealBuilderSubtitle.textContent = mealType ? `${mealType} · ${iso(new Date())}` : iso(new Date());
 
-  function setSelectedDate(dateStr) {
-    const u = new URL(location.href);
-    u.searchParams.set('date', dateStr);
-    history.replaceState({}, '', u.toString());
-    datePicker.value = dateStr;
-  }
-
-  function openModal(el) {
-    el.classList.remove('hidden');
-    el.setAttribute('aria-hidden', 'false');
-  }
-
-  function closeModal(el) {
-    el.classList.add('hidden');
-    el.setAttribute('aria-hidden', 'true');
-  }
-
-  function fmt(n) {
-    const num = Number(n || 0);
-    return Math.round(num * 10) / 10;
-  }
-
-  async function loadSummary() {
-    const summary = await apiFetch(`/api/summary/day/${dayLogId}`);
-    summaryDateLabel.textContent = datePicker.value;
-    totalCaloriesEl.textContent = Math.round(Number(summary.totalCalories || 0));
-    proteinEl.textContent = fmt(summary.protein);
-    carbsEl.textContent = fmt(summary.carbs);
-    fatEl.textContent = fmt(summary.fat);
-    caloriesHintEl.textContent = `${Math.round(Number(summary.totalCalories || 0))} kcal logged`;
-  }
-
-  function mealLabel(m) {
-    const t = String(m.meal_type || '').toLowerCase();
-    return t.charAt(0).toUpperCase() + t.slice(1);
-  }
-
-  async function loadMeals() {
-    meals = await apiFetch(`/api/meals/${dayLogId}`);
-    if (!Array.isArray(meals)) meals = [];
-
-    if (!selectedMealId && meals.length) {
-      selectedMealId = meals[0].id;
+    mealItemsEl.innerHTML = '';
+    if (!items.length) {
+      emptyMealHint.style.display = '';
+    } else {
+      emptyMealHint.style.display = 'none';
     }
 
-    const itemsByMeal = new Map();
-    await Promise.all(
-      meals.map(async (m) => {
-        const r = await apiFetch(`/api/meals/${m.id}/items`);
-        itemsByMeal.set(m.id, r);
-      })
-    );
+    items.forEach((it) => {
+      const grams = Math.max(0, Math.round(Number(it.grams || 0)));
+      const calories = (grams / 100) * Number(it.food.calories_per_100g || 0);
 
-    mealsGrid.innerHTML = '';
-    meals.forEach((m) => {
-      const r = itemsByMeal.get(m.id) || { items: [], totals: {} };
-      const isActive = selectedMealId === m.id;
-
-      const card = document.createElement('div');
-      card.className = `meal-card ${isActive ? 'active' : ''}`;
-      card.tabIndex = 0;
-
-      const head = document.createElement('div');
-      head.className = 'meal-card-header';
-      head.innerHTML = `
-        <div>
-          <div class="meal-title">${mealLabel(m)}</div>
-          <div class="muted">${Math.round(Number(r.totals.calories || 0))} kcal</div>
+      const row = document.createElement('div');
+      row.className = 'meal-builder-row';
+      row.innerHTML = `
+        <div class="meal-builder-main">
+          <div class="meal-builder-name">${it.food.name}</div>
+          <div class="muted">${Math.round(calories)} kcal · ${grams}g</div>
         </div>
-        <div class="meal-actions">
-          <button class="btn btn-outline btn-xs" type="button" data-action="select">Select</button>
-          <button class="icon-btn" type="button" data-action="delete" aria-label="Delete meal">🗑</button>
+        <div class="meal-builder-controls">
+          <button class="icon-btn" type="button" data-action="decg" aria-label="Decrease grams">−</button>
+          <input class="input input-sm meal-builder-grams" type="number" min="0" step="1" value="${grams}" data-action="setg" aria-label="Grams" />
+          <button class="icon-btn" type="button" data-action="incg" aria-label="Increase grams">+</button>
+          <button class="icon-btn" type="button" data-action="remove" aria-label="Remove">✕</button>
         </div>
       `;
 
-      const body = document.createElement('div');
-      body.className = 'meal-card-body';
-
-      if (!r.items.length) {
-        body.innerHTML = `<div class="muted">No foods yet. Select this meal and add foods from search.</div>`;
-      } else {
-        const list = document.createElement('div');
-        list.className = 'meal-items';
-
-        r.items.forEach((it) => {
-          const row = document.createElement('div');
-          row.className = 'meal-item';
-          row.innerHTML = `
-            <div class="meal-item-main">
-              <div class="meal-item-name">${it.name}</div>
-              <div class="muted">${Math.round(Number(it.calories || 0))} kcal</div>
-            </div>
-            <div class="meal-item-controls">
-              <input class="input input-xs" type="number" min="1" value="${Math.round(Number(it.quantity_grams || 0))}" data-foodid="${it.food_item_id}" aria-label="Quantity in grams" />
-              <span class="muted">g</span>
-              <button class="icon-btn" type="button" data-action="remove" data-foodid="${it.food_item_id}" aria-label="Remove">✕</button>
-            </div>
-          `;
-          list.appendChild(row);
-        });
-
-        body.appendChild(list);
-      }
-
-      const footer = document.createElement('div');
-      footer.className = 'meal-card-footer';
-      footer.innerHTML = `
-        <div class="muted">P ${fmt(r.totals.protein)}g · C ${fmt(r.totals.carbs)}g · F ${fmt(r.totals.fat)}g</div>
-      `;
-
-      card.appendChild(head);
-      card.appendChild(body);
-      card.appendChild(footer);
-
-      // Click handlers
-      card.addEventListener('click', (e) => {
+      row.addEventListener('click', (e) => {
         const btn = e.target.closest('button');
-        if (!btn) {
-          setSelectedMeal(m.id);
-          return;
-        }
+        if (!btn) return;
         const action = btn.dataset.action;
-        if (action === 'select') setSelectedMeal(m.id);
-        if (action === 'delete') deleteMeal(m.id);
-        if (action === 'remove') {
-          const foodId = btn.dataset.foodid;
-          removeItem(m.id, foodId);
+        const step = 10;
+        if (action === 'incg') it.grams = Math.min(5000, grams + step);
+        if (action === 'decg') it.grams = Math.max(0, grams - step);
+        if (action === 'remove' || Number(it.grams || 0) <= 0) {
+          items = items.filter((x) => x.food.id !== it.food.id);
         }
+        render();
       });
 
-      // Quantity updates
-      card.addEventListener('change', (e) => {
-        const input = e.target;
-        if (!(input instanceof HTMLInputElement)) return;
-        if (!input.dataset.foodid) return;
-        const foodId = input.dataset.foodid;
-        const qty = Math.max(1, Number(input.value || 0));
-        updateQuantity(m.id, foodId, qty);
+      row.querySelector('input[data-action="setg"]').addEventListener('input', (e) => {
+        const v = Math.max(0, Math.round(Number(e.target.value || 0)));
+        it.grams = v;
+        if (v <= 0) items = items.filter((x) => x.food.id !== it.food.id);
+        render();
       });
 
-      mealsGrid.appendChild(card);
+      mealItemsEl.appendChild(row);
     });
 
-    updateSelectedMealLabel();
+    const totals = computeTotals();
+    totalCaloriesEl.textContent = Math.round(totals.calories);
+    proteinEl.textContent = fmt(totals.protein);
+    carbsEl.textContent = fmt(totals.carbs);
+    fatEl.textContent = fmt(totals.fat);
+
+    saveMealBtn.disabled = items.length === 0;
   }
 
-  function setSelectedMeal(mealId) {
-    selectedMealId = mealId;
-    updateSelectedMealLabel();
-    // rerender active state only
-    document.querySelectorAll('.meal-card').forEach((c) => c.classList.remove('active'));
-    const index = meals.findIndex((m) => m.id === mealId);
-    if (index >= 0) mealsGrid.children[index]?.classList.add('active');
+  function render() {
+    renderMeal();
   }
 
-  function updateSelectedMealLabel() {
-    const m = meals.find((x) => x.id === selectedMealId);
-    selectedMealLabel.textContent = m ? mealLabel(m) : '—';
-  }
+  function foodResultCard(food) {
+    const card = document.createElement('div');
+    card.className = 'food-row';
+    const cal = Math.round(Number(food.calories_per_100g || 0));
+    const p = fmt(food.protein_per_100g || 0);
+    const c = fmt(food.carbs_per_100g || 0);
+    const f = fmt(food.fat_per_100g || 0);
 
-  async function deleteMeal(mealId) {
-    if (!confirm('Delete this meal?')) return;
-    await apiFetch(`/api/meals/${mealId}`, { method: 'DELETE' });
-    if (selectedMealId === mealId) selectedMealId = null;
-    await loadMeals();
-    await loadSummary();
-  }
+    card.innerHTML = `
+      <div>
+        <div class="food-name">${food.name}</div>
+        <div class="muted">${cal} kcal / 100g</div>
+      </div>
 
-  async function updateQuantity(mealId, foodId, qty) {
-    await apiFetch(`/api/meals/${mealId}/items/${foodId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ quantity_grams: qty })
+      <div class="food-row-meta" aria-label="Macros per 100g">
+        <div class="meta-chip"><span class="muted">P</span> ${p}g</div>
+        <div class="meta-chip"><span class="muted">C</span> ${c}g</div>
+        <div class="meta-chip"><span class="muted">F</span> ${f}g</div>
+      </div>
+
+      <div class="qty-stepper" aria-label="Quantity in grams">
+        <button class="icon-btn" type="button" data-action="qdec" aria-label="Decrease grams">−</button>
+        <input class="input input-sm" type="number" min="1" step="1" value="100" data-role="qty" />
+        <button class="icon-btn" type="button" data-action="qinc" aria-label="Increase grams">+</button>
+      </div>
+
+      <button class="icon-btn icon-plus" type="button" data-action="add" aria-label="Add">+</button>
+    `;
+
+    const qtyInput = card.querySelector('input[data-role="qty"]');
+
+    card.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const step = 25;
+      let qty = Math.max(1, Math.round(Number(qtyInput.value || 100)));
+      if (action === 'qinc') qty = Math.min(5000, qty + step);
+      if (action === 'qdec') qty = Math.max(1, qty - step);
+      qtyInput.value = String(qty);
+
+      if (action === 'add') {
+        const existing = items.find((x) => x.food.id === food.id);
+        if (existing) existing.grams = Math.min(5000, Number(existing.grams || 0) + qty);
+        else items.push({ food, grams: qty });
+        render();
+      }
     });
-    await loadMeals();
-    await loadSummary();
-  }
 
-  async function removeItem(mealId, foodId) {
-    await apiFetch(`/api/meals/${mealId}/items/${foodId}`, { method: 'DELETE' });
-    await loadMeals();
-    await loadSummary();
-  }
-
-  async function createMeal() {
-    const type = mealType.value;
-    const created = await apiFetch('/api/meals', {
-      method: 'POST',
-      body: JSON.stringify({ day_log_id: dayLogId, meal_type: type })
-    });
-    selectedMealId = created.id;
-    closeModal(mealModal);
-    await loadMeals();
-    await loadSummary();
+    return card;
   }
 
   async function searchFoods() {
-    const q = String(foodQuery.value || '').trim();
+    const q = String(foodQueryEl.value || '').trim();
     if (!q) {
-      foodResults.innerHTML = '<div class="muted">Type a food name to search.</div>';
+      foodResultsEl.innerHTML = '<div class="muted">Type something to search.</div>';
       return;
     }
+
     const results = await apiFetch(`/api/foods/search?q=${encodeURIComponent(q)}`);
+    foodResultsEl.innerHTML = '';
     if (!Array.isArray(results) || results.length === 0) {
-      foodResults.innerHTML = '<div class="muted">No results.</div>';
+      foodResultsEl.innerHTML = '<div class="muted">No results.</div>';
       return;
     }
 
-    foodResults.innerHTML = '';
-    results.forEach((f) => {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'food-result';
-      row.innerHTML = `
-        <div>
-          <div class="food-name">${f.name}</div>
-          <div class="muted">${Math.round(Number(f.calories_per_100g || 0))} kcal / 100g</div>
-        </div>
-        <div class="pill pill-secondary">Add</div>
-      `;
-
-      row.addEventListener('click', async () => {
-        if (!selectedMealId) {
-          alert('Create or select a meal first.');
-          return;
-        }
-        const qty = Math.max(1, Number(quantityGrams.value || 100));
-        await apiFetch('/api/foods/add-to-meal', {
-          method: 'POST',
-          body: JSON.stringify({ meal_id: selectedMealId, food_item_id: f.id, quantity_grams: qty })
-        });
-        await loadMeals();
-        await loadSummary();
-      });
-
-      foodResults.appendChild(row);
-    });
+    results.forEach((f) => foodResultsEl.appendChild(foodResultCard(f)));
   }
 
-  async function createCustomFood(e) {
+  async function saveMeal() {
+    if (!items.length) return;
+
+    saveMealBtn.disabled = true;
+    saveMealBtn.textContent = 'Saving…';
+    try {
+      // Create (or get) today's day log
+      const date = iso(new Date());
+      const dayLog = await apiFetch(`/api/day-logs/${date}`);
+
+      // Create meal
+      const createdMeal = await apiFetch('/api/meals', {
+        method: 'POST',
+        body: JSON.stringify({ day_log_id: dayLog.id, meal_type: mealTypeEl.value })
+      });
+
+      // Add foods (in order)
+      for (const it of items) {
+        const qty = Math.max(1, Math.round(Number(it.grams || 0)));
+        await apiFetch('/api/foods/add-to-meal', {
+          method: 'POST',
+          body: JSON.stringify({ meal_id: createdMeal.id, food_item_id: it.food.id, quantity_grams: qty })
+        });
+      }
+
+      // Reset local state and go back to dashboard
+      items = [];
+      render();
+      window.location.href = 'dashboard.html';
+    } finally {
+      saveMealBtn.disabled = items.length === 0;
+      saveMealBtn.textContent = 'Save Meal';
+    }
+  }
+
+  // Custom food creation
+  createCustomFoodBtn?.addEventListener('click', () => openModal(customFoodModal));
+  closeCustomFoodModal?.addEventListener('click', () => closeModal(customFoodModal));
+  cancelCustomFood?.addEventListener('click', () => closeModal(customFoodModal));
+
+  customFoodForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = document.getElementById('cf_name').value.trim();
-    const calories = Number(document.getElementById('cf_cal').value);
-    const protein = Number(document.getElementById('cf_pro').value || 0);
-    const carbs = Number(document.getElementById('cf_carbs').value || 0);
-    const fat = Number(document.getElementById('cf_fat').value || 0);
+    const name = document.getElementById('cf_name').value;
+    const cal = document.getElementById('cf_cal').value;
+    const pro = document.getElementById('cf_pro').value;
+    const carbs = document.getElementById('cf_carbs').value;
+    const fat = document.getElementById('cf_fat').value;
 
     const created = await apiFetch('/api/foods', {
       method: 'POST',
       body: JSON.stringify({
         name,
-        calories_per_100g: calories,
-        protein_per_100g: protein,
-        carbs_per_100g: carbs,
-        fat_per_100g: fat
+        calories_per_100g: Number(cal),
+        protein_per_100g: pro === '' ? null : Number(pro),
+        carbs_per_100g: carbs === '' ? null : Number(carbs),
+        fat_per_100g: fat === '' ? null : Number(fat)
       })
     });
 
     closeModal(customFoodModal);
-    foodQuery.value = created.name;
-    await searchFoods();
-  }
+    customFoodForm.reset();
+    // Convenience: add the newly created food to the meal
+    if (created && created.id) {
+      const existing = items.find((x) => x.food.id === created.id);
+      if (existing) existing.grams = Math.min(5000, Number(existing.grams || 0) + 100);
+      else items.push({ food: created, grams: 100 });
+      render();
+    }
+  });
 
-  async function initDay(dateStr) {
-    setSelectedDate(dateStr);
-    const dayLog = await apiFetch(`/api/day-logs/${dateStr}`);
-    dayLogId = dayLog.id;
-    await loadMeals();
-    await loadSummary();
-  }
+  // Events
+  // Search-as-you-type (debounced)
+  let t = null;
+  foodQueryEl.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(() => searchFoods().catch(() => {}), 220);
+  });
+  searchFoodBtn.addEventListener('click', () => searchFoods().catch(() => {}));
 
-  function wire() {
-    const initial = getSelectedDate();
-    datePicker.value = initial;
+  mealTypeEl.addEventListener('change', render);
+  clearMealBtn.addEventListener('click', () => {
+    if (!items.length) return;
+    if (!confirm('Clear this meal?')) return;
+    items = [];
+    render();
+  });
+  saveMealBtn.addEventListener('click', saveMeal);
 
-    datePicker.addEventListener('change', () => {
-      const v = datePicker.value;
-      if (!v) return;
-      initDay(v).catch(() => alert('Failed to load day'));
-    });
-
-    prevBtn.addEventListener('click', () => initDay(addDays(datePicker.value || getSelectedDate(), -1)).catch(() => alert('Failed to load day')));
-    nextBtn.addEventListener('click', () => initDay(addDays(datePicker.value || getSelectedDate(), 1)).catch(() => alert('Failed to load day')));
-
-    addMealBtn.addEventListener('click', () => openModal(mealModal));
-    closeMealModal.addEventListener('click', () => closeModal(mealModal));
-    cancelAddMeal.addEventListener('click', () => closeModal(mealModal));
-    confirmAddMeal.addEventListener('click', () => createMeal().catch(() => alert('Failed to create meal')));
-
-    searchFoodBtn.addEventListener('click', () => searchFoods().catch(() => alert('Search failed')));
-    foodQuery.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        searchFoods().catch(() => alert('Search failed'));
-      }
-    });
-
-    createCustomFoodBtn.addEventListener('click', () => openModal(customFoodModal));
-    closeCustomFoodModal.addEventListener('click', () => closeModal(customFoodModal));
-    cancelCustomFood.addEventListener('click', () => closeModal(customFoodModal));
-    customFoodForm.addEventListener('submit', (e) => createCustomFood(e).catch(() => alert('Failed to create custom food')));
-
-    // click outside modal to close
-    document.addEventListener('click', (e) => {
-      if (e.target === mealModal) closeModal(mealModal);
-      if (e.target === customFoodModal) closeModal(customFoodModal);
-    });
-  }
-
-  wire();
-  initDay(getSelectedDate()).catch(() => alert('Failed to load day'));
+  // Initial render
+  render();
 })();

@@ -8,7 +8,6 @@
     { href: 'meal-logging.html', label: 'Log meals' },
     { href: 'diet-planner.html', label: 'Diet planner' },
     { href: 'reports.html', label: 'Reports' },
-    { href: 'admin.html', label: 'Admin' }
   ];
 
   const current = (location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
@@ -35,6 +34,11 @@
       </nav>
 
       <div class="sidebar-footer">
+        <button class="nav-btn nav-logout" id="navLogoutBtn" type="button">
+          <span aria-hidden="true">⎋</span>
+          <span>Log out</span>
+        </button>
+
         <a class="nav-btn nav-settings ${current === 'settings.html' ? 'active' : ''}" href="settings.html">
           <span aria-hidden="true">⚙</span>
           <span>Settings</span>
@@ -42,4 +46,6 @@
       </div>
     </div>
   `;
+
+  document.getElementById('navLogoutBtn')?.addEventListener('click', logout);
 })();

@@ -13,14 +13,8 @@
     <div class="app-main">
       <header class="topbar">
         <div>
-          <h1 class="h1">Log meals</h1>
-          <p class="muted">Search foods, add them to meals, or create custom foods.</p>
-        </div>
-
-        <div class="topbar-actions">
-          <button class="icon-btn" id="prevDayBtn" type="button" aria-label="Previous day">‹</button>
-          <input class="input" type="date" id="datePicker" />
-          <button class="icon-btn" id="nextDayBtn" type="button" aria-label="Next day">›</button>
+          <h1 class="h1">Log Meal</h1>
+          <p class="muted">Search foods and build a single meal.</p>
         </div>
       </header>
 
@@ -29,113 +23,78 @@
           <!-- Search + Results -->
           <section class="card">
             <div class="card-header">
-              <h2 class="h2">Food search</h2>
-              <p class="muted">Add a food to a selected meal.</p>
+              <div class="row-between" style="align-items: center;">
+                <div>
+                  <h2 class="h2">Search Foods</h2>
+                  <p class="muted">Add foods to your meal in order.</p>
+                </div>
+                <div class="row gap" style="align-items: center; justify-content:flex-end;">
+                  <label class="muted" for="mealType" style="font-weight: 700;">Meal</label>
+                  <select class="input input-sm" id="mealType" aria-label="Meal type">
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch">Lunch</option>
+                    <option value="dinner">Dinner</option>
+                    <option value="snack">Snack</option>
+                  </select>
+                </div>
+              </div>
             </div>
             <div class="card-body">
               <div class="stack">
                 <div class="row gap">
-                  <input class="input" id="foodQuery" type="text" placeholder="Search foods…" />
+                  <input class="input" id="foodQuery" type="text" placeholder="Search for foods…" />
                   <button class="btn btn-outline" id="searchFoodBtn" type="button">Search</button>
                 </div>
 
-                <div class="row gap">
-                  <label class="label" for="quantityGrams" style="min-width: 110px;">Quantity (g)</label>
-                  <input class="input" id="quantityGrams" type="number" min="1" value="100" />
-                </div>
-
-                <div class="row-between">
-                  <div class="muted">Selected meal: <strong id="selectedMealLabel">—</strong></div>
+                <div class="row-between" style="align-items: center;">
+                  <div class="muted">Tap <strong>+</strong> to add.</div>
                   <button class="btn btn-outline" id="createCustomFoodBtn" type="button">+ Custom food</button>
                 </div>
 
-                <div class="food-results" id="foodResults"></div>
+                <div class="food-results" id="foodResults" aria-label="Food results"></div>
               </div>
             </div>
           </section>
 
-          <!-- Daily summary + Meals -->
+          <!-- Meal Builder + Totals -->
           <section class="stack">
-            <section class="card card-gradient">
+            <section class="card">
               <div class="card-header">
-                <h2 class="h2">Daily summary</h2>
-                <p class="muted" id="summaryDateLabel">—</p>
+                <div class="row-between" style="align-items:center;">
+                  <div>
+                    <h2 class="h2">Meal Builder</h2>
+                    <p class="muted" id="mealBuilderSubtitle">—</p>
+                  </div>
+                  <button class="btn btn-outline" id="clearMealBtn" type="button">Clear</button>
+                </div>
               </div>
               <div class="card-body">
-                <div class="calories-block">
-                  <div class="calories-value">
-                    <span id="totalCalories">0</span>
-                    <span class="calories-unit">kcal</span>
-                  </div>
-                  <div class="muted" id="caloriesHint">0 kcal logged</div>
-                </div>
-
-                <div class="divider"></div>
-
-                <div class="macro-list">
-                  <div class="macro-row">
-                    <div>
-                      <div class="muted">Protein</div>
-                      <div class="macro-strong"><span id="proteinG">0</span> g</div>
-                    </div>
-                    <div class="pill">P</div>
-                  </div>
-                  <div class="macro-row">
-                    <div>
-                      <div class="muted">Carbs</div>
-                      <div class="macro-strong"><span id="carbsG">0</span> g</div>
-                    </div>
-                    <div class="pill pill-secondary">C</div>
-                  </div>
-                  <div class="macro-row">
-                    <div>
-                      <div class="muted">Fat</div>
-                      <div class="macro-strong"><span id="fatG">0</span> g</div>
-                    </div>
-                    <div class="pill pill-accent">F</div>
-                  </div>
-                </div>
+                <div id="mealItems" class="meal-builder" aria-label="Meal items"></div>
+                <div class="muted" id="emptyMealHint" style="margin-top: 10px;">No foods yet. Search and add foods to build your meal.</div>
               </div>
             </section>
 
             <section class="card">
-              <div class="card-header row-between">
-                <div>
-                  <h2 class="h2">Meals</h2>
-                  <p class="muted">Select a meal, then add foods.</p>
-                </div>
-                <button class="btn" id="addMealBtn" type="button">+ Add meal</button>
+              <div class="card-header">
+                <h2 class="h2">Total Nutrition</h2>
+                <p class="muted">Based on your meal builder.</p>
               </div>
               <div class="card-body">
-                <div class="meals-grid" id="mealsGrid"></div>
+                <div class="nutrition-totals">
+                  <div class="row-between"><div class="muted">Calories</div><div><strong id="totalCalories">0</strong> kcal</div></div>
+                  <div class="row-between"><div class="muted">Protein</div><div><strong id="proteinG">0</strong> g</div></div>
+                  <div class="row-between"><div class="muted">Carbs</div><div><strong id="carbsG">0</strong> g</div></div>
+                  <div class="row-between"><div class="muted">Fats</div><div><strong id="fatG">0</strong> g</div></div>
+                </div>
+
+                <div class="divider"></div>
+
+                <button class="btn btn-wide" id="saveMealBtn" type="button">Save Meal</button>
               </div>
             </section>
           </section>
         </div>
       </main>
-    </div>
-  </div>
-
-  <!-- Add Meal Modal -->
-  <div class="modal hidden" id="mealModal" role="dialog" aria-modal="true" aria-label="Add meal">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 class="h3">Add meal</h3>
-        <button class="icon-btn" type="button" id="closeMealModal" aria-label="Close">✕</button>
-      </div>
-      <div class="modal-body">
-        <label class="label" for="mealType">Meal type</label>
-        <select class="input" id="mealType">
-          <option value="breakfast">Breakfast</option>
-          <option value="lunch">Lunch</option>
-          <option value="dinner">Dinner</option>
-          <option value="snack">Snack</option>
-        </select>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-outline" type="button" id="cancelAddMeal">Cancel</button>
-        <button class="btn" type="button" id="confirmAddMeal">Create meal</button>
-      </div>
     </div>
   </div>
 
