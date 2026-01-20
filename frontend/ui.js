@@ -77,16 +77,13 @@ async function loadDay(dateISO) {
 }
 
 async function loadToday() {
-  currentDayLog = await apiFetch("/api/day-logs/today");
-  const dateISO = currentDayLog.log_date || fmtDateISO(new Date());
-  datePicker.value = dateISO;
-  summaryDateLabel.textContent = dateISO;
-  await Promise.all([loadSummary(), loadMeals()]);
+  const todayISO = fmtDateISO(new Date());
+  await loadDay(todayISO);
 }
 
 async function loadSummary() {
   if (!currentDayLog?.id) return;
-  const summary = await apiFetch(`/api/day-logs/${currentDayLog.id}/summary`);
+  const summary = await apiFetch(`/api/summary/day/${currentDayLog.id}`);
 
   totalCaloriesEl.textContent = Math.round(summary.totalCalories || 0);
   proteinGEl.textContent = (summary.protein || 0).toFixed(1);

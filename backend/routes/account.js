@@ -12,11 +12,13 @@ router.delete("/", async (req, res) => {
 
   // Best-effort transactional delete. If your DB has ON DELETE CASCADE,
   // the individual deletes below are still safe.
+  // NOTE: transactions must run on a single DB client connection.
+  const client = await db.pool.connect();
   try {
-    await db.query("BEGIN");
+    await client.query("BEGIN");
 
     // meal_food_items -> meals -> day_logs
-    await db.query(
+    await client.query(
       `DELETE FROM meal_food_items
         WHERE meal_id IN (
           SELECT m.id
@@ -27,32 +29,34 @@ router.delete("/", async (req, res) => {
       [userId]
     );
 
-    await db.query(
+    await client.query(
       `DELETE FROM meals
         WHERE day_log_id IN (SELECT id FROM day_logs WHERE user_id = $1)`,
       [userId]
     );
 
-    await db.query(`DELETE FROM day_logs WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM day_logs WHERE user_id = $1`, [userId]);
 
     // User-owned custom foods
-    await db.query(`DELETE FROM food_items WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM food_items WHERE user_id = $1`, [userId]);
 
     // Profile
-    await db.query(`DELETE FROM profiles WHERE user_id = $1`, [userId]);
+    await client.query(`DELETE FROM profiles WHERE user_id = $1`, [userId]);
 
     // Finally, the user row
-    await db.query(`DELETE FROM users WHERE id = $1`, [userId]);
+    await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
 
-    await db.query("COMMIT");
+    await client.query("COMMIT");
     res.json({ message: "Account deleted" });
   } catch (e) {
     try {
-      await db.query("ROLLBACK");
+      await client.query("ROLLBACK");
     } catch {
       // ignore
     }
     res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
   }
 });
 
