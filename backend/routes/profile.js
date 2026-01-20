@@ -2,7 +2,7 @@ const express = require("express");
 const Database = require("../db/Database");
 const db = Database.getInstance();
 const authMiddleware = require("../middleware/authMiddleware");
-const { estimateDailyCalories } = require("../utils/calorieGoal");
+const { calculateRecommendedCalories, normalizeGoal } = require("../utils/calorieGoal");
 
 const router = express.Router();
 
@@ -20,7 +20,13 @@ router.get("/", async (req, res) => {
     return res.json(result.rows[0] || null);
   } catch (e) {
     // If migrations weren't applied yet, fall back to legacy schema.
-    if (e && (e.code === "42703" || String(e.message || "").includes("calculated_calorie_goal"))) {
+    if (
+      e &&
+      (e.code === "42703" ||
+        String(e.message || "").includes("calculated_calorie_goal") ||
+        String(e.message || "").includes("custom_calorie_goal") ||
+        String(e.message || "").includes("goal"))
+    ) {
       const legacy = await db.query(
         `SELECT *, calorie_goal AS calorie_goal
          FROM profiles
@@ -35,9 +41,22 @@ router.get("/", async (req, res) => {
 
 //create
 router.post("/", async (req, res) => {
-  const { age, gender, height_cm, weight_kg, activity_level, calorie_goal, custom_calorie_goal } = req.body;
+  const {
+    age,
+    gender,
+    height_cm,
+    weight_kg,
+    activity_level,
+    goal,
+    calorie_goal,
+    custom_calorie_goal
+  } = req.body;
 
-  const calculated = estimateDailyCalories({ age, gender, height_cm, weight_kg, activity_level });
+  const normalizedGoal = normalizeGoal(goal);
+  const calculated = calculateRecommendedCalories(
+    { age, gender, height_cm, weight_kg, activity_level },
+    normalizedGoal
+  );
   if (calculated === null) {
     return res.status(400).json({ error: "Missing or invalid profile fields to calculate calorie goal" });
   }
@@ -51,21 +70,40 @@ router.post("/", async (req, res) => {
       await db.query(
         `INSERT INTO profiles
           (user_id, age, gender, height_cm, weight_kg, activity_level,
-           calculated_calorie_goal, custom_calorie_goal, calorie_goal)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           goal, calculated_calorie_goal, custom_calorie_goal, calorie_goal)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (user_id) DO UPDATE
            SET age=EXCLUDED.age,
                gender=EXCLUDED.gender,
                height_cm=EXCLUDED.height_cm,
                weight_kg=EXCLUDED.weight_kg,
                activity_level=EXCLUDED.activity_level,
+               goal=EXCLUDED.goal,
                calculated_calorie_goal=EXCLUDED.calculated_calorie_goal,
                custom_calorie_goal=EXCLUDED.custom_calorie_goal,
                calorie_goal=EXCLUDED.calorie_goal`,
-        [req.user.id, age, gender, height_cm, weight_kg, activity_level, calculated, custom, effective]
+        [
+          req.user.id,
+          age,
+          gender,
+          height_cm,
+          weight_kg,
+          activity_level,
+          normalizedGoal,
+          calculated,
+          custom,
+          effective
+        ]
       );
     } catch (e) {
-      if (e && (e.code === "42703" || String(e.message || "").includes("calculated_calorie_goal"))) {
+      // Legacy schema: no calculated/custom/goal columns.
+      if (
+        e &&
+        (e.code === "42703" ||
+          String(e.message || "").includes("calculated_calorie_goal") ||
+          String(e.message || "").includes("custom_calorie_goal") ||
+          String(e.message || "").includes("goal"))
+      ) {
         await db.query(
           `INSERT INTO profiles
             (user_id, age, gender, height_cm, weight_kg, activity_level, calorie_goal)
@@ -92,9 +130,22 @@ router.post("/", async (req, res) => {
 
 // update profile
 router.put("/", async (req, res) => {
-  const { age, gender, height_cm, weight_kg, activity_level, calorie_goal, custom_calorie_goal } = req.body;
+  const {
+    age,
+    gender,
+    height_cm,
+    weight_kg,
+    activity_level,
+    goal,
+    calorie_goal,
+    custom_calorie_goal
+  } = req.body;
 
-  const calculated = estimateDailyCalories({ age, gender, height_cm, weight_kg, activity_level });
+  const normalizedGoal = normalizeGoal(goal);
+  const calculated = calculateRecommendedCalories(
+    { age, gender, height_cm, weight_kg, activity_level },
+    normalizedGoal
+  );
   if (calculated === null) {
     return res.status(400).json({ error: "Missing or invalid profile fields to calculate calorie goal" });
   }
@@ -111,14 +162,32 @@ router.put("/", async (req, res) => {
              height_cm=$3,
              weight_kg=$4,
              activity_level=$5,
-             calculated_calorie_goal=$6,
-             custom_calorie_goal=$7,
-             calorie_goal=$8
-       WHERE user_id=$9`,
-      [age, gender, height_cm, weight_kg, activity_level, calculated, custom, effective, req.user.id]
+             goal=$6,
+             calculated_calorie_goal=$7,
+             custom_calorie_goal=$8,
+             calorie_goal=$9
+       WHERE user_id=$10`,
+      [
+        age,
+        gender,
+        height_cm,
+        weight_kg,
+        activity_level,
+        normalizedGoal,
+        calculated,
+        custom,
+        effective,
+        req.user.id
+      ]
     );
   } catch (e) {
-    if (e && (e.code === "42703" || String(e.message || "").includes("calculated_calorie_goal"))) {
+    if (
+      e &&
+      (e.code === "42703" ||
+        String(e.message || "").includes("calculated_calorie_goal") ||
+        String(e.message || "").includes("custom_calorie_goal") ||
+        String(e.message || "").includes("goal"))
+    ) {
       await db.query(
         `UPDATE profiles
            SET age=$1,

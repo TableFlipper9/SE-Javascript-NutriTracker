@@ -6,7 +6,6 @@
   const links = [
     { href: 'dashboard.html', label: 'Dashboard' },
     { href: 'meal-logging.html', label: 'Log meals' },
-    { href: 'diet-planner.html', label: 'Diet planner' },
     { href: 'reports.html', label: 'Reports' },
   ];
 

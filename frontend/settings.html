@@ -51,9 +51,19 @@
                 <div>
                   <label class="label" for="activity">Activity level</label>
                   <select class="input" id="activity">
-                    <option value="low">Low</option>
+                    <option value="sedentary">Sedentary</option>
+                    <option value="light">Light</option>
                     <option value="moderate">Moderate</option>
-                    <option value="high">High</option>
+                    <option value="active">Active</option>
+                    <option value="very_active">Very active</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label" for="goal">Goal</label>
+                  <select class="input" id="goal">
+                    <option value="lose">Lose weight</option>
+                    <option value="maintain" selected>Maintain weight</option>
+                    <option value="gain">Gain weight</option>
                   </select>
                 </div>
                 <div class="stack" style="gap:8px;">
@@ -93,6 +103,7 @@
   <script src="auth.js"></script>
   <script src="api.js"></script>
   <script src="nav.js"></script>
+  <script src="calorieGoal.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>

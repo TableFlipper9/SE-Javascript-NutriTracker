@@ -1,9 +1,23 @@
 /**
- * Estimate daily calorie maintenance (TDEE) from profile inputs.
+ * Calorie goal utilities.
+ *
+ * - estimateDailyCalories(): estimates maintenance calories (TDEE)
+ * - applyGoalAdjustment(): adjusts maintenance calories based on goal
+ * - calculateRecommendedCalories(): maintenance calories adjusted by goal
  *
  * Uses Mifflin–St Jeor BMR with a standard activity multiplier.
- * Returns an integer kcal/day (rounded).
  */
+
+const GOALS = ["lose", "maintain", "gain"];
+
+// Canonical activity options used across the app.
+const ACTIVITY_LEVELS = [
+  { value: "sedentary", label: "Sedentary" },
+  { value: "light", label: "Light" },
+  { value: "moderate", label: "Moderate" },
+  { value: "active", label: "Active" },
+  { value: "very_active", label: "Very active" }
+];
 
 function normalizeGender(gender) {
   if (!gender) return "other";
@@ -11,6 +25,11 @@ function normalizeGender(gender) {
   if (g === "m" || g === "male") return "male";
   if (g === "f" || g === "female") return "female";
   return "other";
+}
+
+function normalizeGoal(goal) {
+  const g = String(goal || "maintain").toLowerCase();
+  return GOALS.includes(g) ? g : "maintain";
 }
 
 function activityMultiplier(activityLevel) {
@@ -36,6 +55,10 @@ function activityMultiplier(activityLevel) {
   }
 }
 
+/**
+ * Maintenance calories (TDEE).
+ * Returns an integer kcal/day (rounded) or null if required fields are missing/invalid.
+ */
 function estimateDailyCalories({ age, gender, height_cm, weight_kg, activity_level }) {
   const a = Number(age);
   const h = Number(height_cm);
@@ -61,4 +84,46 @@ function estimateDailyCalories({ age, gender, height_cm, weight_kg, activity_lev
   return Math.max(800, Math.round(tdee));
 }
 
-module.exports = { estimateDailyCalories };
+/**
+ * Adjust maintenance calories by a percentage.
+ *
+ * Defaults:
+ * - lose:     -15%
+ * - maintain:  0%
+ * - gain:     +15%
+ */
+function applyGoalAdjustment(maintenanceCalories, goal, opts = {}) {
+  const base = Number(maintenanceCalories);
+  if (!Number.isFinite(base)) return null;
+
+  const g = normalizeGoal(goal);
+  const pct = {
+    lose: Number.isFinite(opts.losePct) ? opts.losePct : 0.15,
+    gain: Number.isFinite(opts.gainPct) ? opts.gainPct : 0.15
+  };
+
+  let multiplier = 1;
+  if (g === "lose") multiplier = 1 - pct.lose;
+  else if (g === "gain") multiplier = 1 + pct.gain;
+
+  return Math.max(800, Math.round(base * multiplier));
+}
+
+/**
+ * Recommended calories based on full profile + goal.
+ */
+function calculateRecommendedCalories(profile, goal, opts = {}) {
+  const maintenance = estimateDailyCalories(profile);
+  if (maintenance === null) return null;
+  return applyGoalAdjustment(maintenance, goal, opts);
+}
+
+module.exports = {
+  GOALS,
+  ACTIVITY_LEVELS,
+  activityMultiplier,
+  estimateDailyCalories,
+  applyGoalAdjustment,
+  calculateRecommendedCalories,
+  normalizeGoal
+};

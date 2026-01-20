@@ -100,6 +100,14 @@
                     <option value="very_active">Very active</option>
                   </select>
                 </div>
+                <div>
+                  <label class="label" for="reg_goal_type">Goal</label>
+                  <select class="input" id="reg_goal_type" required>
+                    <option value="lose">Lose weight</option>
+                    <option value="maintain" selected>Maintain weight</option>
+                    <option value="gain">Gain weight</option>
+                  </select>
+                </div>
                 <div class="stack" style="gap:8px;">
                   <div class="row-between" style="align-items:center;">
                     <label class="label" for="reg_goal" style="margin:0;">Daily calorie goal</label>
@@ -123,6 +131,7 @@
   </div>
 
   <script src="auth.js"></script>
+  <script src="calorieGoal.js"></script>
   <script>
     // Tabs
     const tabLogin = document.getElementById('tabLogin');
@@ -229,6 +238,7 @@
           height_cm: Number(reg_height.value),
           weight_kg: Number(reg_weight.value),
           activity_level: reg_activity.value,
+          goal: document.getElementById('reg_goal_type').value,
           // optional: if null/omitted, backend stores a calculated default
           custom_calorie_goal: customGoalValue
         })
@@ -249,40 +259,22 @@
     loginForm.addEventListener('submit', login);
     registerForm.addEventListener('submit', register);
 
-    // Recommended calorie goal preview (same approach as backend)
-    function activityMultiplier(a) {
-      switch (String(a || '').toLowerCase()) {
-        case 'sedentary': return 1.2;
-        case 'light': return 1.375;
-        case 'moderate': return 1.55;
-        case 'active': return 1.725;
-        case 'very_active': return 1.9;
-        default: return 1.2;
-      }
-    }
-
-    function estimateGoal() {
-      const age = Number(reg_age.value);
-      const height = Number(reg_height.value);
-      const weight = Number(reg_weight.value);
-      const gender = String(reg_gender.value || '').toLowerCase();
-      const act = reg_activity.value;
-
-      if (!Number.isFinite(age) || !Number.isFinite(height) || !Number.isFinite(weight) || !gender || !act) return null;
-
-      const base = 10 * weight + 6.25 * height - 5 * age;
-      let bmr;
-      if (gender === 'male') bmr = base + 5;
-      else if (gender === 'female') bmr = base - 161;
-      else bmr = base + (5 - 161) / 2;
-
-      const tdee = bmr * activityMultiplier(act);
-      return Math.max(800, Math.round(tdee));
-    }
-
+    // Recommended calorie goal preview (shared util; mirrors backend)
     function refreshRecommended() {
       const el = document.getElementById('reg_recommended');
-      const est = estimateGoal();
+      const goal = document.getElementById('reg_goal_type').value;
+
+      const est = window.CalorieGoalUtil.calculateRecommendedCalories(
+        {
+          age: Number(reg_age.value),
+          gender: reg_gender.value,
+          height_cm: Number(reg_height.value),
+          weight_kg: Number(reg_weight.value),
+          activity_level: reg_activity.value
+        },
+        goal
+      );
+
       el.textContent = est ? `Recommended: ${est} kcal/day` : 'Recommended: —';
     }
 
@@ -300,6 +292,7 @@
       reg_weight.addEventListener(evt, refreshRecommended);
       reg_activity.addEventListener(evt, refreshRecommended);
     });
+    document.getElementById('reg_goal_type').addEventListener('change', refreshRecommended);
     refreshRecommended();
   </script>
 </body>
