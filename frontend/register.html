@@ -100,9 +100,16 @@
                     <option value="very_active">Very active</option>
                   </select>
                 </div>
-                <div>
-                  <label class="label" for="reg_goal">Daily calorie goal</label>
-                  <input class="input" id="reg_goal" type="number" min="500" max="10000" step="1" required />
+                <div class="stack" style="gap:8px;">
+                  <div class="row-between" style="align-items:center;">
+                    <label class="label" for="reg_goal" style="margin:0;">Daily calorie goal</label>
+                    <label class="row gap" style="align-items:center; user-select:none;">
+                      <input type="checkbox" id="reg_use_custom_goal" />
+                      <span class="muted">Set custom</span>
+                    </label>
+                  </div>
+                  <div class="muted" id="reg_recommended" aria-live="polite">Recommended: —</div>
+                  <input class="input" id="reg_goal" type="number" min="500" max="10000" step="1" placeholder="Leave blank to use the recommended goal" disabled />
                 </div>
               </div>
 
@@ -181,31 +188,119 @@
 
     async function register(e) {
       e.preventDefault();
-      const res = await fetch('http://localhost:3000/api/auth/register', {
+
+      const useCustomGoal = document.getElementById('reg_use_custom_goal').checked;
+      const customGoalValue = useCustomGoal && reg_goal.value !== '' ? Number(reg_goal.value) : null;
+
+      // 1) Create user
+      const userRes = await fetch('http://localhost:3000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: reg_username.value,
           email: reg_email.value,
-          password: reg_password.value,
+          password: reg_password.value
+        })
+      });
 
-          // profile (required)
+      if (!userRes.ok) {
+        let msg = 'Registration failed';
+        try {
+          const j = await userRes.json();
+          if (j && j.error) msg = j.error;
+        } catch {}
+        return alert(msg);
+      }
+
+      const userData = await userRes.json();
+      if (!userData || !userData.token) return alert('Registration failed: no token returned');
+      setToken(userData.token);
+
+      // 2) Create profile (required)
+      const profRes = await fetch('http://localhost:3000/api/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({
           age: Number(reg_age.value),
           gender: reg_gender.value,
           height_cm: Number(reg_height.value),
           weight_kg: Number(reg_weight.value),
           activity_level: reg_activity.value,
-          calorie_goal: Number(reg_goal.value)
+          // optional: if null/omitted, backend stores a calculated default
+          custom_calorie_goal: customGoalValue
         })
       });
 
-      if (!res.ok) return alert('Registration failed');
-      alert('Registered. You can now sign in.');
-      window.location.href='login.html';
+      if (!profRes.ok) {
+        let msg = 'Profile creation failed';
+        try {
+          const j = await profRes.json();
+          if (j && j.error) msg = j.error;
+        } catch {}
+        return alert(msg);
+      }
+
+      window.location.href = 'dashboard.html';
     }
 
     loginForm.addEventListener('submit', login);
     registerForm.addEventListener('submit', register);
+
+    // Recommended calorie goal preview (same approach as backend)
+    function activityMultiplier(a) {
+      switch (String(a || '').toLowerCase()) {
+        case 'sedentary': return 1.2;
+        case 'light': return 1.375;
+        case 'moderate': return 1.55;
+        case 'active': return 1.725;
+        case 'very_active': return 1.9;
+        default: return 1.2;
+      }
+    }
+
+    function estimateGoal() {
+      const age = Number(reg_age.value);
+      const height = Number(reg_height.value);
+      const weight = Number(reg_weight.value);
+      const gender = String(reg_gender.value || '').toLowerCase();
+      const act = reg_activity.value;
+
+      if (!Number.isFinite(age) || !Number.isFinite(height) || !Number.isFinite(weight) || !gender || !act) return null;
+
+      const base = 10 * weight + 6.25 * height - 5 * age;
+      let bmr;
+      if (gender === 'male') bmr = base + 5;
+      else if (gender === 'female') bmr = base - 161;
+      else bmr = base + (5 - 161) / 2;
+
+      const tdee = bmr * activityMultiplier(act);
+      return Math.max(800, Math.round(tdee));
+    }
+
+    function refreshRecommended() {
+      const el = document.getElementById('reg_recommended');
+      const est = estimateGoal();
+      el.textContent = est ? `Recommended: ${est} kcal/day` : 'Recommended: —';
+    }
+
+    // Toggle custom input
+    const customToggle = document.getElementById('reg_use_custom_goal');
+    customToggle.addEventListener('change', () => {
+      reg_goal.disabled = !customToggle.checked;
+      if (!customToggle.checked) reg_goal.value = '';
+    });
+
+    ['input', 'change'].forEach(evt => {
+      reg_age.addEventListener(evt, refreshRecommended);
+      reg_gender.addEventListener(evt, refreshRecommended);
+      reg_height.addEventListener(evt, refreshRecommended);
+      reg_weight.addEventListener(evt, refreshRecommended);
+      reg_activity.addEventListener(evt, refreshRecommended);
+    });
+    refreshRecommended();
   </script>
 </body>
 </html>

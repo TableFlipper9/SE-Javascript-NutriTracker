@@ -2,41 +2,21 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const Database = require("../db/Database");
 const db = Database.getInstance();
+// Profile calories are calculated in /api/profile.
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "demo-secret-key";
 
 // register
 router.post("/register", async (req, res) => {
-  const {
-    username,
-    email,
-    password,
-    age,
-    gender,
-    height_cm,
-    weight_kg,
-    activity_level,
-    calorie_goal
-  } = req.body;
+  const { username, email, password } = req.body;
 
   try {
-    // Basic required-field checks (frontend enforces too)
+    // Basic required-field checks
     if (!username || !email || !password) {
       return res.status(400).json({ error: "Missing username, email, or password" });
     }
-    if (
-      age === undefined ||
-      !gender ||
-      height_cm === undefined ||
-      weight_kg === undefined ||
-      !activity_level ||
-      calorie_goal === undefined
-    ) {
-      return res.status(400).json({ error: "Profile is required to complete registration" });
-    }
 
-    // Create user + profile in a transaction
     await db.query("BEGIN");
     const userRes = await db.query(
       `INSERT INTO users (username, email, password)
@@ -46,19 +26,26 @@ router.post("/register", async (req, res) => {
     );
 
     const userId = userRes.rows[0].id;
-
-    await db.query(
-      `INSERT INTO profiles
-       (user_id, age, gender, height_cm, weight_kg, activity_level, calorie_goal)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, age, gender, height_cm, weight_kg, activity_level, calorie_goal]
-    );
-
     await db.query("COMMIT");
-    res.json({ message: "User registered" });
+
+    // Return a token so the UI can immediately route to onboarding.
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "1h" });
+    res.json({ token });
   } catch (err) {
     try { await db.query("ROLLBACK"); } catch {}
-    res.status(400).json({ error: err.message });
+    // Friendlier errors for common DB constraint failures
+    if (err && err.code === "23505") {
+      // unique_violation (likely username or email)
+      return res.status(400).json({ error: "Username or email already exists" });
+    }
+    if (err && err.code === "23514") {
+      // check_violation
+      return res.status(400).json({ error: "Invalid profile values" });
+    }
+
+    // Log full error on server for debugging
+    console.error("/api/auth/register error:", err);
+    res.status(400).json({ error: err.message || "Registration failed" });
   }
 });
 

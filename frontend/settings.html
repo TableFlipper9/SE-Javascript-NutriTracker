@@ -56,9 +56,16 @@
                     <option value="high">High</option>
                   </select>
                 </div>
-                <div>
-                  <label class="label" for="calorieGoal">Daily calorie goal</label>
-                  <input class="input" id="calorieGoal" type="number" min="1" placeholder="e.g. 2000" />
+                <div class="stack" style="gap:8px;">
+                  <div class="row-between" style="align-items:center;">
+                    <label class="label" for="calorieGoal" style="margin:0;">Daily calorie goal</label>
+                    <label class="row gap" style="align-items:center; user-select:none;">
+                      <input type="checkbox" id="useCustomGoal" />
+                      <span class="muted">Set custom</span>
+                    </label>
+                  </div>
+                  <div class="muted" id="recommendedGoal" aria-live="polite">Recommended: —</div>
+                  <input class="input" id="calorieGoal" type="number" min="500" max="10000" step="1" placeholder="Leave blank to use the recommended goal" disabled />
                 </div>
               </div>
 

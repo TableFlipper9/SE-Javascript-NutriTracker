@@ -327,6 +327,11 @@
     setSelectedDate(selected);
 
     const profile = await getProfile();
+    // If user has no profile yet, send them to the registration/profile flow.
+    if (!profile) {
+      window.location.href = 'register.html';
+      return;
+    }
     const goal = profile && profile.calorie_goal ? Number(profile.calorie_goal) : null;
 
     // day log + meals + summary

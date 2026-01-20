@@ -96,7 +96,8 @@ h1,h2,h3,h4 { margin: 0; }
 
 /* Log Meal page: give the Search column a bit more horizontal room */
 .grid-2-searchwide {
-  grid-template-columns: 1.25fr 1fr;
+  /* Make Search noticeably wider; right column (builder + totals) slightly narrower */
+  grid-template-columns: 1.55fr 0.95fr;
 }
 
 .grid-2col {
