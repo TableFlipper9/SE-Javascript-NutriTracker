@@ -9,6 +9,9 @@
   --radius-lg: 24px;
   --radius-md: 16px;
   --primary: #22c55e;
+  /* Used in the progress bar gradient. If undefined, the gradient becomes invalid
+     and the bar appears invisible unless it is in the `.over` state. */
+  --primary-2: #16a34a;
   --primary-10: rgba(34, 197, 94, 0.10);
   --secondary: #0ea5e9;
   --secondary-10: rgba(14, 165, 233, 0.10);

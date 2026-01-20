@@ -26,7 +26,11 @@
 
   /**
    * Local "draft" meal state (not persisted until Save)
-   * items = [{ food, grams }]
+   *
+   * The Search tab controls the *base grams per portion* for a food.
+   * The Builder controls the *number of portions* (x1, x2, x3...).
+   *
+   * items = [{ food, baseGrams, portions }]
    */
   let items = [];
 
@@ -60,7 +64,7 @@
   function computeTotals() {
     const totals = items.reduce(
       (acc, it) => {
-        const grams = Math.max(0, Number(it.grams || 0));
+        const grams = Math.max(0, Number(it.baseGrams || 0)) * Math.max(0, Number(it.portions || 0));
         const f = it.food || {};
         acc.calories += (grams / 100) * Number(f.calories_per_100g || 0);
         acc.protein += (grams / 100) * Number(f.protein_per_100g || 0);
@@ -85,7 +89,9 @@
     }
 
     items.forEach((it) => {
-      const grams = Math.max(0, Math.round(Number(it.grams || 0)));
+      const baseGrams = Math.max(1, Math.round(Number(it.baseGrams || 100)));
+      const portions = Math.max(1, Math.round(Number(it.portions || 1)));
+      const grams = baseGrams * portions;
       const calories = (grams / 100) * Number(it.food.calories_per_100g || 0);
 
       const row = document.createElement('div');
@@ -93,12 +99,12 @@
       row.innerHTML = `
         <div class="meal-builder-main">
           <div class="meal-builder-name">${it.food.name}</div>
-          <div class="muted">${Math.round(calories)} kcal · ${grams}g</div>
+          <div class="muted">${Math.round(calories)} kcal · ${grams}g <span class="muted" style="font-weight:600;">(x${portions} of ${baseGrams}g)</span></div>
         </div>
         <div class="meal-builder-controls">
-          <button class="icon-btn" type="button" data-action="decg" aria-label="Decrease grams">−</button>
-          <input class="input input-sm meal-builder-grams" type="number" min="0" step="1" value="${grams}" data-action="setg" aria-label="Grams" />
-          <button class="icon-btn" type="button" data-action="incg" aria-label="Increase grams">+</button>
+          <button class="icon-btn" type="button" data-action="decportion" aria-label="Decrease portions">−</button>
+          <input class="input input-sm meal-builder-grams" type="number" min="1" step="1" value="${portions}" data-action="setportion" aria-label="Portions" title="Portions" />
+          <button class="icon-btn" type="button" data-action="incportion" aria-label="Increase portions">+</button>
           <button class="icon-btn" type="button" data-action="remove" aria-label="Remove">✕</button>
         </div>
       `;
@@ -107,19 +113,17 @@
         const btn = e.target.closest('button');
         if (!btn) return;
         const action = btn.dataset.action;
-        const step = 10;
-        if (action === 'incg') it.grams = Math.min(5000, grams + step);
-        if (action === 'decg') it.grams = Math.max(0, grams - step);
-        if (action === 'remove' || Number(it.grams || 0) <= 0) {
+        if (action === 'incportion') it.portions = Math.min(50, portions + 1);
+        if (action === 'decportion') it.portions = Math.max(1, portions - 1);
+        if (action === 'remove' || Number(it.portions || 0) <= 0) {
           items = items.filter((x) => x.food.id !== it.food.id);
         }
         render();
       });
 
-      row.querySelector('input[data-action="setg"]').addEventListener('input', (e) => {
-        const v = Math.max(0, Math.round(Number(e.target.value || 0)));
-        it.grams = v;
-        if (v <= 0) items = items.filter((x) => x.food.id !== it.food.id);
+      row.querySelector('input[data-action="setportion"]').addEventListener('input', (e) => {
+        const v = Math.max(1, Math.round(Number(e.target.value || 1)));
+        it.portions = v;
         render();
       });
 
@@ -182,8 +186,18 @@
 
       if (action === 'add') {
         const existing = items.find((x) => x.food.id === food.id);
-        if (existing) existing.grams = Math.min(5000, Number(existing.grams || 0) + qty);
-        else items.push({ food, grams: qty });
+        if (existing) {
+          // If the user adds the same base portion size, treat it as "+1 portion".
+          // If they change the base grams in search, update the portion size and reset to x1.
+          if (Math.round(Number(existing.baseGrams || 0)) === qty) {
+            existing.portions = Math.min(50, Math.max(1, Math.round(Number(existing.portions || 1))) + 1);
+          } else {
+            existing.baseGrams = qty;
+            existing.portions = 1;
+          }
+        } else {
+          items.push({ food, baseGrams: qty, portions: 1 });
+        }
         render();
       }
     });
@@ -226,7 +240,7 @@
 
       // Add foods (in order)
       for (const it of items) {
-        const qty = Math.max(1, Math.round(Number(it.grams || 0)));
+        const qty = Math.max(1, Math.round(Number(it.baseGrams || 0)) * Math.max(1, Math.round(Number(it.portions || 1))));
         await apiFetch('/api/foods/add-to-meal', {
           method: 'POST',
           body: JSON.stringify({ meal_id: createdMeal.id, food_item_id: it.food.id, quantity_grams: qty })

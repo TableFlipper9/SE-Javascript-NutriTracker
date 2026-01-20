@@ -81,7 +81,10 @@
     const innerW = width - padding * 2;
     const innerH = height - padding * 2;
 
-    const maxVal = Math.max(goal || 0, ...points.map(p => p.calories), 500);
+    // Add a bit of headroom so the goal/threshold line isn't glued to the very top
+    // when the goal is the maximum value.
+    const rawMax = Math.max(goal || 0, ...points.map(p => p.calories), 500);
+    const maxVal = rawMax * 1.1;
 
     // axes
     ctx.globalAlpha = 0.18;

@@ -34,7 +34,7 @@
               <label class="label" for="login_password">Password</label>
               <input class="input" id="login_password" type="password" placeholder="••••••••" required />
             </div>
-            <button class="btn" type="submit">Sign In</button>
+            <button class="btn btn-wide" type="submit">Sign In</button>
           </form>
 
           <!-- REGISTER -->
@@ -51,7 +51,7 @@
               <label class="label" for="reg_password">Password</label>
               <input class="input" id="reg_password" type="password" placeholder="Create a password" required />
             </div>
-            <button class="btn" type="submit">Create account</button>
+            <button class="btn btn-wide" type="submit">Create account</button>
             <p class="muted" style="margin:0;">By signing up you agree to your own future self eating more veggies.</p>
           </form>
         </div>
@@ -78,7 +78,7 @@
     }
 
     tabLogin.addEventListener('click', () => setTab('login'));
-    tabRegister.addEventListener('click', () => window.location.href = 'register.html');
+    tabRegister.addEventListener('click', () => setTab('register'));
 
     // API calls (same logic as your original file)
     async function login(e) {
