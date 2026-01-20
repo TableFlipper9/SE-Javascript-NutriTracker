@@ -5,6 +5,8 @@
   const foodQueryEl = document.getElementById('foodQuery');
   const searchFoodBtn = document.getElementById('searchFoodBtn');
   const foodResultsEl = document.getElementById('foodResults');
+  const includeExternalEl = document.getElementById('includeExternal');
+  const searchStatusEl = document.getElementById('searchStatus');
   const mealItemsEl = document.getElementById('mealItems');
   const mealBuilderSubtitle = document.getElementById('mealBuilderSubtitle');
   const emptyMealHint = document.getElementById('emptyMealHint');
@@ -151,9 +153,14 @@
     const c = fmt(food.carbs_per_100g || 0);
     const f = fmt(food.fat_per_100g || 0);
 
+    const isCustom = String(food.source || '') === 'custom' && food.user_id;
+    const sourceBadge = String(food.source || '') && String(food.source || '') !== 'custom'
+      ? `<span class="meta-chip" title="Source" style="margin-left:8px;">${String(food.source).replace(/</g,'&lt;')}</span>`
+      : '';
+
     card.innerHTML = `
       <div>
-        <div class="food-name">${food.name}</div>
+        <div class="food-name">${food.name}${sourceBadge}</div>
         <div class="muted">${cal} kcal / 100g</div>
       </div>
 
@@ -169,7 +176,10 @@
         <button class="icon-btn" type="button" data-action="qinc" aria-label="Increase grams">+</button>
       </div>
 
-      <button class="icon-btn icon-plus" type="button" data-action="add" aria-label="Add">+</button>
+      <div class="row gap" style="justify-content:flex-end;">
+        ${isCustom ? `<button class="icon-btn" type="button" data-action="delete" aria-label="Delete food" title="Delete food">🗑</button>` : ''}
+        <button class="icon-btn icon-plus" type="button" data-action="add" aria-label="Add">+</button>
+      </div>
     `;
 
     const qtyInput = card.querySelector('input[data-role="qty"]');
@@ -184,21 +194,54 @@
       if (action === 'qdec') qty = Math.max(1, qty - step);
       qtyInput.value = String(qty);
 
+      if (action === 'delete') {
+        if (!confirm(`Remove "${food.name}" from your foods list? (Past logs stay intact)`)) return;
+        apiFetch(`/api/foods/${food.id}`, { method: 'DELETE' })
+          .then(() => {
+            // Remove from current meal if present
+            items = items.filter((x) => x.food.id !== food.id);
+            card.remove();
+            render();
+          })
+          .catch((err) => alert(err.message));
+        return;
+      }
+
       if (action === 'add') {
-        const existing = items.find((x) => x.food.id === food.id);
-        if (existing) {
-          // If the user adds the same base portion size, treat it as "+1 portion".
-          // If they change the base grams in search, update the portion size and reset to x1.
-          if (Math.round(Number(existing.baseGrams || 0)) === qty) {
-            existing.portions = Math.min(50, Math.max(1, Math.round(Number(existing.portions || 1))) + 1);
-          } else {
-            existing.baseGrams = qty;
-            existing.portions = 1;
+        // External items may come without a DB id (when we can't cache due to DB constraints).
+        // Import them first so we can reference a stable food_item_id in meal logs.
+        const doAdd = async () => {
+          let actualFood = food;
+          if (!actualFood.id) {
+            actualFood = await apiFetch('/api/foods/import-external', {
+              method: 'POST',
+              body: JSON.stringify({
+                name: actualFood.name,
+                calories_per_100g: actualFood.calories_per_100g,
+                protein_per_100g: actualFood.protein_per_100g,
+                carbs_per_100g: actualFood.carbs_per_100g,
+                fat_per_100g: actualFood.fat_per_100g
+              })
+            });
           }
-        } else {
-          items.push({ food, baseGrams: qty, portions: 1 });
-        }
-        render();
+
+          const existing = items.find((x) => x.food.id === actualFood.id);
+          if (existing) {
+            // If the user adds the same base portion size, treat it as "+1 portion".
+            // If they change the base grams in search, update the portion size and reset to x1.
+            if (Math.round(Number(existing.baseGrams || 0)) === qty) {
+              existing.portions = Math.min(50, Math.max(1, Math.round(Number(existing.portions || 1))) + 1);
+            } else {
+              existing.baseGrams = qty;
+              existing.portions = 1;
+            }
+          } else {
+            items.push({ food: actualFood, baseGrams: qty, portions: 1 });
+          }
+          render();
+        };
+
+        doAdd().catch((err) => alert(err.message));
       }
     });
 
@@ -212,14 +255,55 @@
       return;
     }
 
-    const results = await apiFetch(`/api/foods/search?q=${encodeURIComponent(q)}`);
     foodResultsEl.innerHTML = '';
-    if (!Array.isArray(results) || results.length === 0) {
+    if (searchStatusEl) searchStatusEl.textContent = 'Searching…';
+
+    // Local first
+    const local = await apiFetch(`/api/foods/search?q=${encodeURIComponent(q)}`);
+
+    // Optional external fan-out
+    let external = [];
+    const includeExternal = includeExternalEl ? includeExternalEl.checked : true;
+    if (includeExternal) {
+      try {
+        external = await apiFetch(`/api/foods/search-external?q=${encodeURIComponent(q)}`);
+      } catch {
+        external = [];
+      }
+    }
+
+    const localArr = Array.isArray(local) ? local : [];
+    const extArr = Array.isArray(external) ? external : [];
+
+    const mkSection = (title) => {
+      const el = document.createElement('div');
+      el.className = 'muted';
+      el.style.fontWeight = '800';
+      el.style.margin = '10px 0 6px';
+      el.textContent = title;
+      return el;
+    };
+
+    if (localArr.length === 0 && extArr.length === 0) {
       foodResultsEl.innerHTML = '<div class="muted">No results.</div>';
+      if (searchStatusEl) searchStatusEl.textContent = '';
       return;
     }
 
-    results.forEach((f) => foodResultsEl.appendChild(foodResultCard(f)));
+    if (localArr.length) {
+      foodResultsEl.appendChild(mkSection('Local foods'));
+      localArr.forEach((f) => foodResultsEl.appendChild(foodResultCard(f)));
+    }
+
+    // Avoid duplicates (same id can happen if an external item was cached earlier)
+    const localIds = new Set(localArr.map((x) => x.id));
+    const filteredExt = extArr.filter((x) => !localIds.has(x.id));
+    if (filteredExt.length) {
+      foodResultsEl.appendChild(mkSection('Online foods'));
+      filteredExt.forEach((f) => foodResultsEl.appendChild(foodResultCard(f)));
+    }
+
+    if (searchStatusEl) searchStatusEl.textContent = '';
   }
 
   async function saveMeal() {
@@ -286,8 +370,11 @@
     // Convenience: add the newly created food to the meal
     if (created && created.id) {
       const existing = items.find((x) => x.food.id === created.id);
-      if (existing) existing.grams = Math.min(5000, Number(existing.grams || 0) + 100);
-      else items.push({ food: created, grams: 100 });
+      if (existing) {
+        existing.portions = Math.min(50, Math.max(1, Math.round(Number(existing.portions || 1))) + 1);
+      } else {
+        items.push({ food: created, baseGrams: 100, portions: 1 });
+      }
       render();
     }
   });

@@ -63,9 +63,12 @@ router.get("/week", async (req, res) => {
     if (!start) return res.status(400).json({ error: "Missing start=YYYY-MM-DD" });
 
     // totals per date for the user
+    // IMPORTANT: return log_date as a DATE string (YYYY-MM-DD) to avoid timezone shifts
+    // when it reaches the browser. If dl.log_date is a timestamp/timestamptz, JSON
+    // serialization can shift it to the previous day for some timezones.
     const result = await db.query(`
       SELECT
-        dl.log_date,
+        to_char(dl.log_date::date, 'YYYY-MM-DD') AS log_date,
         COALESCE(SUM(mfi.quantity_grams / 100.0 * fi.calories_per_100g), 0) AS calories
       FROM day_logs dl
       LEFT JOIN meals m ON m.day_log_id = dl.id
@@ -74,8 +77,8 @@ router.get("/week", async (req, res) => {
       WHERE dl.user_id = $1
         AND dl.log_date >= $2::date
         AND dl.log_date < ($2::date + INTERVAL '7 days')
-      GROUP BY dl.log_date
-      ORDER BY dl.log_date ASC
+      GROUP BY dl.log_date::date
+      ORDER BY dl.log_date::date ASC
     `, [req.user.id, start]);
 
     res.json(result.rows);

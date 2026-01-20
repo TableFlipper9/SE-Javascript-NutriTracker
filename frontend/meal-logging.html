@@ -46,6 +46,14 @@
                   <button class="btn btn-outline" id="searchFoodBtn" type="button">Search</button>
                 </div>
 
+                <div class="row-between" style="align-items:center;">
+                  <label class="row gap" style="align-items:center; user-select:none;">
+                    <input type="checkbox" id="includeExternal" checked />
+                    <span class="muted">Include online results (CalorieNinjas)</span>
+                  </label>
+                  <div class="muted" id="searchStatus" aria-live="polite"></div>
+                </div>
+
                 <div class="row-between" style="align-items: center;">
                   <div class="muted">Tap <strong>+</strong> to add.</div>
                   <button class="btn btn-outline" id="createCustomFoodBtn" type="button">+ Custom food</button>
