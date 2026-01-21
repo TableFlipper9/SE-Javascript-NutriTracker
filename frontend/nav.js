@@ -4,32 +4,42 @@
   if (!requireAuth()) return;
 
   const links = [
-    { href: 'dashboard.html', label: 'Dashboard' },
-    { href: 'meal-logging.html', label: 'Log meals' },
-    { href: 'reports.html', label: 'Reports' },
+    { href: 'dashboard.html', label: 'Dashboard', dateAware: true },
+    { href: 'meal-logging.html', label: 'Log meals', dateAware: true },
+    { href: 'reports.html', label: 'Reports', dateAware: false },
   ];
 
-  function withSelectedDate(href) {
-    // Keep navigation "...html?date=YYYY-MM-DD" consistent with the dashboard date picker.
-    // (If storage is unavailable or date isn't set, we just return the plain href.)
+  function getSelectedDate() {
     try {
       const d = localStorage.getItem('selectedDate');
-      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return href;
-      const u = new URL(href, location.href);
-      u.searchParams.set('date', d);
-      return u.pathname.split('/').pop() + '?' + u.searchParams.toString();
+      if (d && /^\d{4}-\d{2}-\d{2}$/.test(String(d))) return String(d);
     } catch {
-      return href;
+      // ignore
     }
+    return null;
   }
 
-  const current = (location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
+  function withSelectedDate(href) {
+    const d = getSelectedDate();
+    if (!d) return href;
+    const u = new URL(href, window.location.href);
+    u.searchParams.set('date', d);
+    // keep relative
+    return u.pathname.split('/').pop() + '?' + u.searchParams.toString();
+  }
+
+  const current = (window.location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
 
   const navLinks = links
     .map((l) => {
       const isActive = current === l.href.toLowerCase();
-      const href = (l.href === 'dashboard.html' || l.href === 'meal-logging.html') ? withSelectedDate(l.href) : l.href;
-      return `<a class="nav-btn ${isActive ? 'active' : ''}" href="${href}">${l.label}</a>`;
+
+      // Keep the original sidebar/nav structure + classes (style.css relies on these),
+      // but compute date-aware destinations at click time so changes apply immediately.
+      if (l.dateAware) {
+        return `<a class="nav-btn ${isActive ? 'active' : ''}" href="${l.href}" data-date-aware="1" data-base-href="${l.href}">${l.label}</a>`;
+      }
+      return `<a class="nav-btn ${isActive ? 'active' : ''}" href="${l.href}">${l.label}</a>`;
     })
     .join('');
 
@@ -60,6 +70,23 @@
       </div>
     </div>
   `;
+
+  // Date-aware navigation: compute destination using the latest selectedDate on click.
+  host.querySelectorAll('a[data-date-aware="1"]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      // allow new-tab/window and modified clicks
+      if (e.defaultPrevented) return;
+      if (e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      const baseHref = a.getAttribute('data-base-href') || a.getAttribute('href') || '';
+      const dest = withSelectedDate(baseHref);
+      if (dest && dest !== baseHref) {
+        e.preventDefault();
+        window.location.href = dest;
+      }
+    });
+  });
 
   document.getElementById('navLogoutBtn')?.addEventListener('click', logout);
 })();
