@@ -63,6 +63,26 @@
     return `${year}-${month}-${day}`;
   }
 
+  function getSelectedDate() {
+    // Prefer explicit query param (lets other pages deep-link)
+    const u = new URL(location.href);
+    const qp = u.searchParams.get('date');
+    if (qp && /^\d{4}-\d{2}-\d{2}$/.test(qp)) return qp;
+
+    // Fall back to what dashboard last stored
+    try {
+      const stored = localStorage.getItem('selectedDate');
+      if (stored && /^\d{4}-\d{2}-\d{2}$/.test(stored)) return stored;
+    } catch {
+      // ignore
+    }
+
+    // Last resort: today
+    return iso(new Date());
+  }
+
+  const selectedDate = getSelectedDate();
+
   function computeTotals() {
     const totals = items.reduce(
       (acc, it) => {
@@ -81,7 +101,7 @@
 
   function renderMeal() {
     const mealType = titleCase(mealTypeEl.value);
-    mealBuilderSubtitle.textContent = mealType ? `${mealType} · ${iso(new Date())}` : iso(new Date());
+    mealBuilderSubtitle.textContent = mealType ? `${mealType} · ${selectedDate}` : selectedDate;
 
     mealItemsEl.innerHTML = '';
     if (!items.length) {
@@ -313,8 +333,7 @@
     saveMealBtn.textContent = 'Saving…';
     try {
       // Create (or get) today's day log
-      const date = iso(new Date());
-      const dayLog = await apiFetch(`/api/day-logs/${date}`);
+      const dayLog = await apiFetch(`/api/day-logs/${selectedDate}`);
 
       // Create meal
       const createdMeal = await apiFetch('/api/meals', {
@@ -334,7 +353,7 @@
       // Reset local state and go back to dashboard
       items = [];
       render();
-      window.location.href = 'dashboard.html';
+      window.location.href = `dashboard.html?date=${encodeURIComponent(selectedDate)}`;
     } finally {
       saveMealBtn.disabled = items.length === 0;
       saveMealBtn.textContent = 'Save Meal';

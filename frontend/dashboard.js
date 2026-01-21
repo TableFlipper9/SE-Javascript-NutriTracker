@@ -58,6 +58,16 @@
     u.searchParams.set('date', dateStr);
     history.replaceState({}, '', u.toString());
     datePicker.value = dateStr;
+
+    // Persist the last selected date so other pages (e.g. meal logging) can use it.
+    // (Keeps navigation consistent when switching pages via the sidebar.)
+    try {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr))) {
+        localStorage.setItem('selectedDate', String(dateStr));
+      }
+    } catch {
+      // ignore (private mode / storage disabled)
+    }
   }
 
   async function getProfile() {

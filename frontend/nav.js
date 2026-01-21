@@ -9,12 +9,27 @@
     { href: 'reports.html', label: 'Reports' },
   ];
 
+  function withSelectedDate(href) {
+    // Keep navigation "...html?date=YYYY-MM-DD" consistent with the dashboard date picker.
+    // (If storage is unavailable or date isn't set, we just return the plain href.)
+    try {
+      const d = localStorage.getItem('selectedDate');
+      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return href;
+      const u = new URL(href, location.href);
+      u.searchParams.set('date', d);
+      return u.pathname.split('/').pop() + '?' + u.searchParams.toString();
+    } catch {
+      return href;
+    }
+  }
+
   const current = (location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
 
   const navLinks = links
     .map((l) => {
       const isActive = current === l.href.toLowerCase();
-      return `<a class="nav-btn ${isActive ? 'active' : ''}" href="${l.href}">${l.label}</a>`;
+      const href = (l.href === 'dashboard.html' || l.href === 'meal-logging.html') ? withSelectedDate(l.href) : l.href;
+      return `<a class="nav-btn ${isActive ? 'active' : ''}" href="${href}">${l.label}</a>`;
     })
     .join('');
 
